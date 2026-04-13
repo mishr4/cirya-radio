@@ -42,93 +42,95 @@
             border-top: 1px solid #333;
             padding-top: 20px;
         }
-        h3 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: #777; margin-bottom: 10px; }
+        h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-bottom: 12px; }
         #podcast-list {
-            max-height: 150px;
+            max-height: 180px;
             overflow-y: auto;
         }
         .pod-item {
             display: block;
-            padding: 10px;
+            padding: 12px;
             color: #ffffff;
             text-decoration: none;
             font-size: 0.85rem;
-            border-radius: 8px;
-            margin-bottom: 5px;
+            border-radius: 10px;
+            margin-bottom: 8px;
             background: #222;
+            border: 1px solid transparent;
+            transition: background 0.2s;
         }
-        .pod-item:hover { background: #333; }
+        .pod-item:hover { 
+            background: #2a2a2a; 
+            border-color: #444;
+        }
+        .pod-title { font-weight: 700; display: block; margin-bottom: 2px; }
+        .pod-meta { font-size: 0.75rem; color: #777; }
     </style>
 </head>
 <body>
 
 <div id="player-card">
-    <img id="album-art" src="" alt="Album Art">
-    <h2 id="title">Loading...</h2>
-    <p id="artist">Cirya Radio</p>
+    <img id="album-art" src="" alt="Art">
+    <h2 id="title">Loading Stream...</h2>
+    <p id="artist">Cirya Network</p>
 
     <audio id="audio-player" controls>
         <source src="https://azura.sflx.us/listen/one/radio.mp3" type="audio/mpeg">
     </audio>
 
     <div id="podcast-container">
-        <h3>Podcasts</h3>
-        <div id="podcast-list">Fetching episodes...</div>
+        <h3>Recent Podcasts</h3>
+        <div id="podcast-list">Syncing episodes...</div>
     </div>
 </div>
 
 <script>
-    // Configuration
-    const API_BASE = "https://azura.sflx.us/api";
-    const STATION_ID = "one"; // Using your mount point identifier
+    const API_BASE = "https://cast.cirya.co/api";
+    const STATION_ID = 1;
 
     async function fetchMetadata() {
         try {
-            // Fetching from the general nowplaying endpoint
-            const response = await fetch(`${API_BASE}/nowplaying`);
+            const response = await fetch(`${API_BASE}/nowplaying/${STATION_ID}`);
             const data = await response.json();
             
-            // Find the station with the matching mount or ID
-            const station = data.find(s => s.station.shortcode === STATION_ID || s.station.id == 1);
-            
-            if (station) {
-                document.getElementById('title').innerText = station.now_playing.song.title;
-                document.getElementById('artist').innerText = station.now_playing.song.artist;
-                document.getElementById('album-art').src = station.now_playing.song.art;
-                document.title = "Live: " + station.now_playing.song.title;
+            if (data) {
+                document.getElementById('title').innerText = data.now_playing.song.title;
+                document.getElementById('artist').innerText = data.now_playing.song.artist;
+                document.getElementById('album-art').src = data.now_playing.song.art;
+                document.title = "Live: " + data.now_playing.song.title;
             }
         } catch (err) {
-            console.error("Metadata fetch failed", err);
+            console.error("Metadata sync error:", err);
         }
     }
 
     async function fetchPodcasts() {
         try {
-            // Station ID 1 is the default for most AzuraCast setups
-            const response = await fetch(`${API_BASE}/station/1/podcasts`);
+            const response = await fetch(`${API_BASE}/station/${STATION_ID}/podcasts`);
             const data = await response.json();
             const list = document.getElementById('podcast-list');
             
-            if (data.length === 0) {
-                list.innerHTML = "<small>No podcasts found.</small>";
+            if (!data || data.length === 0) {
+                list.innerHTML = "<small style='color:#555'>No podcasts published.</small>";
                 return;
             }
 
             list.innerHTML = data.map(pod => `
                 <a href="${pod.links.public}" target="_blank" class="pod-item">
-                    ${pod.title}
+                    <span class="pod-title">${pod.title}</span>
+                    <span class="pod-meta">${pod.episodes_count || 0} episodes available</span>
                 </a>
             `).join('');
         } catch (err) {
-            document.getElementById('podcast-list').innerHTML = "<small>Error loading podcasts.</small>";
+            document.getElementById('podcast-list').innerHTML = "<small style='color:#555'>Unable to load podcasts.</small>";
         }
     }
 
-    // Initial Load
+    // Run on boot
     fetchMetadata();
     fetchPodcasts();
 
-    // Refresh metadata every 15 seconds
+    // Poll metadata every 15s to keep current
     setInterval(fetchMetadata, 15000);
 </script>
 
