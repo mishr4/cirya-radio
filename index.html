@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cirya Player</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0b0b;
+            color: #eeeeee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        #player-card {
+            width: 350px;
+            background: #181818;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+        #album-art {
+            width: 250px;
+            height: 250px;
+            border-radius: 12px;
+            object-fit: cover;
+            margin-bottom: 20px;
+            background: #252525;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h2 { margin: 10px 0 5px; font-size: 1.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        p { margin: 0 0 25px; color: #a0a0a0; font-size: 1rem; }
+        audio { width: 100%; height: 40px; filter: invert(90%); }
+        
+        #podcast-container {
+            margin-top: 25px;
+            text-align: left;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+        }
+        h3 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: #777; margin-bottom: 10px; }
+        #podcast-list {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .pod-item {
+            display: block;
+            padding: 10px;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            background: #222;
+        }
+        .pod-item:hover { background: #333; }
+    </style>
+</head>
+<body>
+
+<div id="player-card">
+    <img id="album-art" src="" alt="Album Art">
+    <h2 id="title">Loading...</h2>
+    <p id="artist">Cirya Radio</p>
+
+    <audio id="audio-player" controls>
+        <source src="https://azura.sflx.us/listen/one/radio.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="podcast-container">
+        <h3>Podcasts</h3>
+        <div id="podcast-list">Fetching episodes...</div>
+    </div>
+</div>
+
+<script>
+    // Configuration
+    const API_BASE = "https://azura.sflx.us/api";
+    const STATION_ID = "one"; // Using your mount point identifier
+
+    async function fetchMetadata() {
+        try {
+            // Fetching from the general nowplaying endpoint
+            const response = await fetch(`${API_BASE}/nowplaying`);
+            const data = await response.json();
+            
+            // Find the station with the matching mount or ID
+            const station = data.find(s => s.station.shortcode === STATION_ID || s.station.id == 1);
+            
+            if (station) {
+                document.getElementById('title').innerText = station.now_playing.song.title;
+                document.getElementById('artist').innerText = station.now_playing.song.artist;
+                document.getElementById('album-art').src = station.now_playing.song.art;
+                document.title = "Live: " + station.now_playing.song.title;
+            }
+        } catch (err) {
+            console.error("Metadata fetch failed", err);
+        }
+    }
+
+    async function fetchPodcasts() {
+        try {
+            // Station ID 1 is the default for most AzuraCast setups
+            const response = await fetch(`${API_BASE}/station/1/podcasts`);
+            const data = await response.json();
+            const list = document.getElementById('podcast-list');
+            
+            if (data.length === 0) {
+                list.innerHTML = "<small>No podcasts found.</small>";
+                return;
+            }
+
+            list.innerHTML = data.map(pod => `
+                <a href="${pod.links.public}" target="_blank" class="pod-item">
+                    ${pod.title}
+                </a>
+            `).join('');
+        } catch (err) {
+            document.getElementById('podcast-list').innerHTML = "<small>Error loading podcasts.</small>";
+        }
+    }
+
+    // Initial Load
+    fetchMetadata();
+    fetchPodcasts();
+
+    // Refresh metadata every 15 seconds
+    setInterval(fetchMetadata, 15000);
+</script>
+
+</body>
+</html>
